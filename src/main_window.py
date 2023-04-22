@@ -1,6 +1,6 @@
 from PyQt6.QtGui import QKeyEvent
-from PyQt6.QtCore import QSize, QTimer, QTime
-from PyQt6.QtWidgets import QMainWindow, QPushButton, QLabel, QFileDialog, QLineEdit
+from PyQt6.QtCore import Qt, QSize, QTimer, QTime
+from PyQt6.QtWidgets import QMainWindow, QPushButton, QLabel, QFileDialog, QLineEdit, QWidget
 from src.text_generating import text_generate
 from src.add_attempt import add_attempt
 from src.alignments_list import alignments_list
@@ -14,7 +14,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Keyboard Trainer")
         self.setFixedSize(QSize(1400, 900))
         self.main_menu()
-
+        self.button_exit = self.create_button("exit", 1150, 50, 200, 60, 28)
+        self.button_exit.clicked.connect(self.close)
+    
     def main_menu(self) -> None:
         """ Displays the start menu page """
         self.button15 = self.create_button('15 sec', 550, 200, 300, 80, 32)
@@ -32,11 +34,12 @@ class MainWindow(QMainWindow):
         self.button_user.clicked.connect(self.set_mode(
             self.switch_to_mode, 0))
         self.button_stat.clicked.connect(self.open_stat_page)
+        self.is_launched = False
 
     def launch(self) -> None:
         """ Creates an attempt window, allows the user typing """
-        self.countdown()
         self.is_launched = False
+        self.countdown()
         self.count_signs = 0
         self.mistakes = 0
         self.label_countdown.hide()
@@ -64,6 +67,11 @@ class MainWindow(QMainWindow):
         self.label_mistakes.setText("mistakes: " + "0")
         self.is_mistake = False
 
+        self.button_exit.hide()
+        self.button_exit.setEnabled(False)
+        self.label_enter = self.create_label(550, 800, 400, 80, 14, 'centre')
+        self.label_enter.setText("press enter to pause")
+
     def update_time(self) -> None:
         """ Updates the attempt timer """
         if not self.is_launched:
@@ -76,6 +84,10 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """ Handles keystrokes when the user is typing """
         if not self.is_launched:
+            return
+
+        if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
+            self.pause()
             return
 
         if (event.text() != self.string2[0] and
@@ -101,7 +113,9 @@ class MainWindow(QMainWindow):
         self.attempt_time = self.current_time
         self.is_launched = False
         self.hide_labels(self.label_time, self.label_str1, self.label_str2,
-                         self.label_mistakes)
+                         self.label_mistakes, self.label_enter)
+        self.button_exit.setEnabled(True)
+        self.button_exit.show()
         self.attempt_stat()
 
     def hide_stat_attempt(self) -> None:
@@ -112,12 +126,17 @@ class MainWindow(QMainWindow):
 
     def user_task_selection(self) -> None:
         """ Displays the user tasks page """
-        self.button_new_task = self.create_button("Create task", 600, 300,
+        self.button_new_task = self.create_button("create task", 600, 300,
                                                    300, 80, 32)
         self.button_new_task.clicked.connect(self.create_task_page)
-        self.button_upload = self.create_button("Upload task", 600, 400, 300,
+        self.button_upload = self.create_button("upload task", 600, 400, 300,
                                                 80, 32)
         self.button_upload.clicked.connect(self.file_selection)
+        self.button_to_menu = self.create_button("menu", 600, 500, 300,
+                                                 80, 32)
+        self.button_to_menu.clicked.connect(
+            self.back_from_user_task_selection(self.main_menu))
+
 
     def file_selection(self) -> None:
         """ Opens the file selection window,
@@ -135,7 +154,8 @@ class MainWindow(QMainWindow):
         else:
             self.button_upload.setChecked(False)
             return
-        self.hide_buttons(self.button_new_task, self.button_upload)
+        self.hide_buttons(self.button_new_task, self.button_upload,
+                          self.button_to_menu)
         self.task_info_page()
         
     def task_info_page(self) -> None:
@@ -150,9 +170,9 @@ class MainWindow(QMainWindow):
                                       " wpm")
         self.label_task_time.setText("Time: " + str(self.time_limit) + " sec")
         self.time_limit = QTime(0, 0, 0, 0).addSecs(self.time_limit)
-        self.button_start_task = self.create_button("Start", 350, 550, 300,
+        self.button_start_task = self.create_button("start", 350, 550, 300,
                                                     80, 32)
-        self.button_to_menu = self.create_button("Menu", 750, 550, 300,
+        self.button_to_menu = self.create_button("menu", 750, 550, 300,
                                                  80, 32)
         self.button_start_task.clicked.connect(self.launch_task(self.launch))
         self.button_to_menu.clicked.connect(self.back_from_task_info(
@@ -160,7 +180,8 @@ class MainWindow(QMainWindow):
 
     def create_task_page(self) -> None:
         """ Displays the page where the user creates the task """
-        self.hide_buttons(self.button_new_task, self.button_upload)
+        self.hide_buttons(self.button_new_task, self.button_upload,
+                          self.button_to_menu)
         self.label_input_speed = self.create_label(350, 250, 300, 80, 32,
                                                    'centre')
         self.label_input_speed.setText("speed: ")
@@ -176,39 +197,48 @@ class MainWindow(QMainWindow):
         self.button_get_file = self.create_button("get a file", 550, 600, 300,
                                                   80, 32)
         self.button_get_file.clicked.connect(self.get_file)
+        self.button_to_menu = self.create_button("menu", 550, 700, 300,
+                                                 80, 32)
+        self.button_to_menu.clicked.connect(self.back_from_create_task(
+            self.main_menu))
 
     def hide_create_task_page(self) -> None:
         """ Disables widgets from the creating task page """
         self.hide_labels(self.label_input_speed, self.label_input_time)
-        self.hide_buttons(self.button_go, self.button_get_file)
+        self.hide_buttons(self.button_go, self.button_get_file,
+                          self.button_to_menu)
         self.edit_speed.hide()
+        self.edit_speed.setEnabled(False)
         self.edit_time.hide()
+        self.edit_time.setEnabled(False)
 
     def get_file(self) -> None:
         """ Saves the created task to the selected folder """
         if self.edit_speed.text() and self.edit_time.text():
             file_dialog = QFileDialog(self)
-            file_name, _ = file_dialog.getSaveFileName(self, "Save the task", "", "(*.txt)")
+            file_name, _ = file_dialog.getSaveFileName(
+                self, "Save the task", "", "(*.txt)")
             self.speed_goal = int(self.edit_speed.text())
-            self.time_limit = QTime(0, 0, 0, 0).addSecs(int(self.edit_time.text()))
+            self.time_limit = QTime(0, 0, 0, 0).addSecs(
+                int(self.edit_time.text()))
             if file_name:
                 with open(file_name, "w") as file:
                     file.write(str(self.time_limit.second()) + '\n')
                     file.write(str(self.speed_goal))
-        self.button_get_file.setChecked = False
+        self.button_get_file.setChecked(False)
         return
 
     def start_create_task(self) -> None:
         """ Sets user settings """
         if self.edit_speed.text() and self.edit_time.text():
-            self.hide_create_task_page()
             self.speed_goal = int(self.edit_speed.text())
-            self.time_limit = QTime(0, 0, 0, 0).addSecs(int(self.edit_time.text()))
+            self.time_limit = QTime(0, 0, 0, 0).addSecs(
+                int(self.edit_time.text()))
+            self.hide_create_task_page()
             self.launch()
         else:
-            self.button_go.setChecked = False
+            self.button_go.setChecked(False)
             return
-
 
     def attempt_stat(self) -> None:
         """ Counts and displays the results of the attempt """
@@ -233,9 +263,9 @@ class MainWindow(QMainWindow):
             self.label_accuracy.setText("accuracy: " + str(self.accuracy)
                                         + "%")
 
-        self.button_to_menu = self.create_button("Menu", 550, 600, 300,
+        self.button_to_menu = self.create_button("menu", 550, 600, 300,
                                                  80, 32)
-        self.button_restart = self.create_button("Restart", 550, 730, 300,
+        self.button_restart = self.create_button("restart", 550, 700, 300,
                                                  80, 32)
         self.button_restart.clicked.connect(self.restart_task(self.launch))
         self.button_to_menu.clicked.connect(self.back_from_res(
@@ -266,6 +296,7 @@ class MainWindow(QMainWindow):
         if self.seconds_left == -1:
             self.timer_count.stop()
             self.label_countdown.hide()
+            self.label_time.show()
             self.timer.start()
             self.is_launched = True  
 
@@ -296,6 +327,29 @@ class MainWindow(QMainWindow):
             self.button_to_menu.hide()
             main_menu()
         return wrapped
+    
+    def back_from_user_task_selection(self, main_menu):
+        """ Goes to the main menu from the user task selection page """
+        def wrapped():
+            self.hide_buttons(self.button_to_menu, self.button_new_task,
+                              self.button_upload)
+            main_menu()
+        return wrapped
+    
+    def back_from_create_task(self, main_menu):
+        """ Goes to the main menu from create task page """
+        def wrapped():
+            self.hide_create_task_page()
+            main_menu()
+        return wrapped
+
+    def back_from_pause(self, main_menu):
+        """ Goes to the main menu from pause page """
+        def wrapped():
+            self.hide_labels(self.label_pause, self.label_time)
+            self.hide_buttons(self.button_continue, self.button_to_menu)
+            main_menu()
+        return wrapped          
 
     def launch_task(self, launch):
         """ Starts the attempt """
@@ -350,7 +404,7 @@ class MainWindow(QMainWindow):
         self.label_stat.setWordWrap(True)
         with open("src/attempts.txt", "r") as file:
             self.label_stat.setText(file.read())
-        self.button_to_menu = self.create_button("Menu", 550, 750, 300,
+        self.button_to_menu = self.create_button("menu", 550, 750, 300,
                                                  80, 32)
         self.button_to_menu.clicked.connect(self.back_from_stat(
             self.main_menu))
@@ -397,6 +451,7 @@ class MainWindow(QMainWindow):
     def create_line_edit(self, pos_weight: int,
                          pos_height: int, size_weight: int,
                          size_height: int, point_size: int) -> QLineEdit:
+        """ Create LineEdit and sets its parameters """
         edit_line = QLineEdit(self)
         font = edit_line.font()
         font.setPointSize(point_size)
@@ -406,5 +461,38 @@ class MainWindow(QMainWindow):
         edit_line.resize(size_weight, size_height)
         return edit_line
 
+    def pause(self) -> None:
+        """ Pauses the attempt """
+        self.timer.stop()
+        self.is_launched = False
+        self.hide_labels(self.label_str1, self.label_str2,
+                         self.label_mistakes, self.label_enter)
+        self.label_pause = self.create_label(550, 450, 300, 80, 52, 'centre')
+        self.label_pause.setText("pause")
+        self.button_continue = self.create_button("continue", 550, 600, 300,
+                                                  80, 32)
+        self.button_continue.clicked.connect(self.continue_attempt)
+        self.button_to_menu = self.create_button("menu", 550, 700, 300,
+                                                 80, 32)
+        self.button_to_menu.clicked.connect(self.back_from_pause(
+            self.main_menu))
+        self.button_exit.show()
+        self.button_exit.setEnabled(True)
+
+    def continue_attempt(self) -> None:
+        """ Continues the attempt after a pause """
+        self.hide_labels(self.label_pause, self.label_time)
+        self.hide_buttons(self.button_continue, self.button_to_menu,
+                          self.button_exit)
+        self.timer.start()
+        self.countdown()
+        self.label_str1.show()
+        self.label_str2.show()
+        self.label_mistakes.show() 
+        self.label_enter.show()
+
+    def close(self) -> None:
+        """ Closes the main window, the application is terminated """
+        QWidget.close(self)
 
 
