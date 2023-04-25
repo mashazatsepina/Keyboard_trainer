@@ -49,6 +49,9 @@ ____
 
 ____
  ## **Установка и запуск приложения:**
+
+ **Зависимости:** PyQt
+
 ```
 git clone -b main git@github.com:mashazatsepina/Keyboard_trainer.git
 cd Keyboard_trainer
